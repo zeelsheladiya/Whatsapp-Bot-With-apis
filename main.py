@@ -8,9 +8,46 @@ from bbc_news_api import NewsFromBBC
 from advice_slip_api import advice_slip
 from quote_api import get_quote
 
+
+import json 
+import numpy as np
+from tensorflow import keras
+from sklearn.preprocessing import LabelEncoder
+
+
+import colorama 
+colorama.init()
+from colorama import Fore, Style, Back
+
+
+import random
+import pickle
+
+
+
 app = Flask('')
 
 #=========  messageRecieveServer flask app
+
+# ============================= modeling 
+
+with open("intents.json") as file:
+    data = json.load(file)
+
+model = keras.models.load_model('chat_model')
+
+# load tokenizer object
+with open('tokenizer.pickle', 'rb') as handle:
+    tokenizer = pickle.load(handle)
+
+# load label encoder object
+with open('label_encoder.pickle', 'rb') as enc:
+    lbl_encoder = pickle.load(enc)
+
+# parameters
+max_len = 20
+
+# ======================================
 
 @app.route('/')
 def home():
@@ -51,7 +88,7 @@ def sms_reply():
 
     elif msg == "who are you?":
       resp = MessagingResponse()
-      resp.message("I am a whatsapp bot which created by zeel sheladiya")
+      resp.message("I am zeelubha the whatsapp bot which is created by group E")
 
     elif msg == "hii":
       resp = MessagingResponse()
@@ -71,8 +108,15 @@ def sms_reply():
 
     else:
       # Create reply
-      resp = MessagingResponse()
-      resp.message("You said: {}".format(message))
+
+      result = model.predict(keras.preprocessing.sequence.pad_sequences(tokenizer.texts_to_sequences([message]),truncating='post', maxlen=max_len))
+
+      tag = lbl_encoder.inverse_transform([np.argmax(result)])
+
+      for i in data['intents']:
+            if i['tag'] == tag:
+              resp = MessagingResponse()
+              resp.message(np.random.choice(i['responses']))
 
     return str(resp)
 
@@ -81,13 +125,12 @@ def runResponceFromServer():
     t.start()
 
 
-
 if __name__ == '__main__':
-
-  # keep alive this script by revieving the responce from the server
-  keep_alive()
 
   #main app running
   runResponceFromServer()
+
+  # keep alive this script by revieving the responce from the server
+  #keep_alive()
     
 
